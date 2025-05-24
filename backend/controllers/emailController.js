@@ -1,6 +1,7 @@
 // controllers/emailController.js
 
 const { client } = require('../config/elasticsearch');
+const logger = require('../utils/logger');
 
 /**
  * GET /api/emails
@@ -28,14 +29,17 @@ const getEmails = async (req, res) => {
     };
 
     const result = await client.search(query);
+
     const hits = result.body.hits.hits.map(hit => ({
       id: hit._id,
       ...hit._source
     }));
 
+    logger.info(`📥 Retrieved ${hits.length} emails${filters.length ? ' with filters' : ''}`);
     res.status(200).json(hits);
+
   } catch (err) {
-    console.error('❌ Error fetching emails:', err.message);
+    logger.error(`❌ Error fetching emails: ${err.message}`);
     res.status(500).json({ error: 'Failed to fetch emails' });
   }
 };
@@ -48,7 +52,10 @@ const searchEmails = async (req, res) => {
   try {
     const { q } = req.query;
 
-    if (!q) return res.status(400).json({ error: 'Missing search query' });
+    if (!q) {
+      logger.warn('⚠️ Missing search query in /emails/search');
+      return res.status(400).json({ error: 'Missing search query' });
+    }
 
     const result = await client.search({
       index: 'emails',
@@ -69,9 +76,11 @@ const searchEmails = async (req, res) => {
       ...hit._source
     }));
 
+    logger.info(`🔍 Search returned ${hits.length} results for query: "${q}"`);
     res.status(200).json(hits);
+
   } catch (err) {
-    console.error('❌ Search error:', err.message);
+    logger.error(`❌ Search error: ${err.message}`);
     res.status(500).json({ error: 'Search failed' });
   }
 };
@@ -81,20 +90,23 @@ const searchEmails = async (req, res) => {
  * Fetch single email by its Elasticsearch ID
  */
 const getEmailById = async (req, res) => {
-  try {
-    const { id } = req.params;
+  const { id } = req.params;
 
+  try {
     const result = await client.get({
       index: 'emails',
       id
     });
 
+    logger.info(`📧 Fetched email with ID: ${id}`);
     res.status(200).json({ id, ...result.body._source });
+
   } catch (err) {
-    console.error('❌ Error fetching email by ID:', err.message);
     if (err.meta?.statusCode === 404) {
+      logger.warn(`⚠️ Email not found with ID: ${id}`);
       res.status(404).json({ error: 'Email not found' });
     } else {
+      logger.error(`❌ Error fetching email by ID (${id}): ${err.message}`);
       res.status(500).json({ error: 'Failed to fetch email' });
     }
   }

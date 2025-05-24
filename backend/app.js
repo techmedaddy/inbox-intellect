@@ -4,37 +4,40 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
+const logger = require('./utils/logger');
 const emailRoutes = require('./routes/emailRoutes');
 const replyRoutes = require('./routes/replyRoutes');
 
-dotenv.config(); // Load environment variables from .env
+dotenv.config();
 
 const app = express();
 
-// === MIDDLEWARE ===
-app.use(cors());                            // Enable CORS
-app.use(express.json());                    // Parse JSON bodies
+// === Middleware ===
+app.use(cors());
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('dev'));                     // Log HTTP requests
+app.use(morgan('dev')); // Still useful for HTTP logs
 
-// === ROUTES ===
-app.use('/api/emails', emailRoutes);        // All email-related routes
-app.use('/api/reply', replyRoutes);         // Suggested reply routes
+// === Routes ===
+app.use('/api/emails', emailRoutes);
+app.use('/api/reply', replyRoutes);
 
-// === ROOT ENDPOINT ===
+// === Health Check ===
 app.get('/', (req, res) => {
-  res.send('📬 Inbox Intellect API is running');
+  logger.info('✅ Health check hit at /');
+  res.send('📬 ReachInbox Onebox API is up and running.');
 });
 
-// === 404 HANDLER ===
-app.use((req, res, next) => {
-  res.status(404).json({ message: 'Route not found' });
+// === 404 Handler ===
+app.use((req, res) => {
+  logger.warn(`⚠️ 404 Not Found: ${req.originalUrl}`);
+  res.status(404).json({ error: 'Route not found' });
 });
 
-// === ERROR HANDLER ===
+// === Global Error Handler ===
 app.use((err, req, res, next) => {
-  console.error('❌ Error:', err);
-  res.status(500).json({ message: 'Internal server error' });
+  logger.error(`❌ Unhandled error: ${err.message}`);
+  res.status(500).json({ error: 'Internal server error' });
 });
 
 module.exports = app;

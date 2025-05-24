@@ -2,28 +2,44 @@
 
 const app = require('./app');
 const dotenv = require('dotenv');
-const startIMAPClients = require('./config/imapClients'); // Custom IMAP loader
-const { Client: ElasticClient } = require('@elastic/elasticsearch');
+const logger = require('./utils/logger');
+const { validateEnv } = require('./utils/envLoader');
+const {
+  checkElasticsearchConnection,
+  initializeEmailIndex
+} = require('./config/elasticsearch');
+const startIMAPClients = require('./config/imapClients');
+const initializeIMAPService = require('./services/imapService');
+const { loadAgendaToMemory } = require('./services/vectorService');
 
+// Load environment variables and validate required keys
 dotenv.config();
+validateEnv();
 
 const PORT = process.env.PORT || 35827;
 
-// === ELASTICSEARCH CONNECTION (optional check) ===
-const elastic = new ElasticClient({ node: process.env.ELASTICSEARCH_URL });
-
-async function checkElasticConnection() {
+(async function startServer() {
   try {
-    const health = await elastic.cluster.health();
-    console.log('✅ Elasticsearch is connected:', health.status);
-  } catch (err) {
-    console.error('❌ Elasticsearch connection failed:', err.message);
-  }
-}
+    logger.info('🚀 Starting ReachInbox Onebox backend...');
 
-// === START EXPRESS SERVER ===
-app.listen(PORT, async () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  await checkElasticConnection();
-  await startIMAPClients(); // Connect to IMAP and begin listening (IDLE mode)
-});
+    // Step 1: Check Elasticsearch health and prepare index
+    await checkElasticsearchConnection();
+    await initializeEmailIndex();
+
+    // Step 2: Load agenda/context for RAG reply generation
+    await loadAgendaToMemory();
+
+    // Step 3: Start Express HTTP server
+    app.listen(PORT, () => {
+      logger.info(`✅ Server running at: http://localhost:${PORT}`);
+    });
+
+    // Step 4: Initialize IMAP sync and email classification pipeline
+    await startIMAPClients();
+    initializeIMAPService();
+
+  } catch (err) {
+    logger.error(`❌ Server startup failed: ${err.stack || err.message}`);
+    process.exit(1); // Exit with failure
+  }
+})();

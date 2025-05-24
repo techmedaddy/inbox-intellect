@@ -5,21 +5,21 @@ const categorizeEmail = require('./categorize');
 const { indexEmail } = require('./elasticService');
 const sendSlackNotification = require('./slackNotifier');
 const triggerWebhook = require('./webhookSender');
+const logger = require('../utils/logger');
 
 /**
  * Start handling incoming email events emitted by IMAP connections
  */
 function initializeIMAPService() {
-  console.log('🔁 IMAP Service is listening for new emails...');
+  logger.info('🔁 IMAP Service is listening for new emails...');
 
   emailEmitter.on('email', async (email) => {
     try {
-      console.log(`📥 New email received from: ${email.from} | Subject: ${email.subject}`);
+      logger.info(`📥 New email received from: ${email.from} | Subject: ${email.subject}`);
 
       // === Step 1: Categorize the email using AI or fallback ===
       const category = await categorizeEmail(email);
-
-      console.log(`🔖 Email categorized as: ${category}`);
+      logger.info(`🔖 Email categorized as: ${category}`);
 
       // === Step 2: Add category and index into Elasticsearch ===
       const indexedEmail = {
@@ -29,22 +29,22 @@ function initializeIMAPService() {
       };
 
       await indexEmail(indexedEmail);
-      console.log('📦 Email indexed in Elasticsearch');
+      logger.info('📦 Email indexed in Elasticsearch');
 
       // === Step 3: Send Slack notification if "Interested" ===
       if (category === 'Interested') {
         await sendSlackNotification(indexedEmail);
-        console.log('📣 Slack notification sent');
+        logger.info('📣 Slack notification sent');
       }
 
       // === Step 4: Trigger webhook.site for automation ===
       if (category === 'Interested') {
         await triggerWebhook(indexedEmail);
-        console.log('🔗 Webhook triggered');
+        logger.info('🔗 Webhook triggered');
       }
 
     } catch (err) {
-      console.error('❌ Error processing email:', err.message);
+      logger.error(`❌ Error processing email: ${err.message}`);
     }
   });
 }

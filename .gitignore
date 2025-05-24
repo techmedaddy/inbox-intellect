@@ -1,0 +1,48 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# dotenv environment variables
+.env
+.env.local
+.env.*.local
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+logs/**/*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage & testing
+coverage/
+*.lcov
+
+# Build artifacts
+dist/
+build/
+
+# Docker
+docker-compose.override.yml
+*.tar
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Elasticsearch and other volumes
+elasticsearch-data/

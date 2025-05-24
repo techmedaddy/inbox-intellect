@@ -2,6 +2,7 @@
 
 const { Client } = require('@elastic/elasticsearch');
 const dotenv = require('dotenv');
+const logger = require('../utils/logger');
 
 dotenv.config();
 
@@ -19,15 +20,15 @@ const client = new Client({
 async function checkElasticsearchConnection() {
   try {
     const health = await client.cluster.health();
-    console.log(`✅ Elasticsearch cluster status: ${health.status}`);
+    logger.info(`✅ Elasticsearch cluster status: ${health.status}`);
   } catch (err) {
-    console.error('❌ Elasticsearch connection failed:', err.message);
-    process.exit(1); // Hard exit if ES is unreachable
+    logger.error(`❌ Elasticsearch connection failed: ${err.message}`);
+    process.exit(1); // Exit if ES is unreachable
   }
 }
 
 /**
- * Creates the `emails` index if it doesn't exist, with mapping for search.
+ * Creates the `emails` index if it doesn't exist, with proper mappings.
  */
 async function initializeEmailIndex() {
   const indexName = 'emails';
@@ -54,13 +55,13 @@ async function initializeEmailIndex() {
           }
         }
       });
-      console.log('📁 Created Elasticsearch index: emails');
+      logger.info('📁 Created Elasticsearch index: emails');
     } else {
-      console.log('📁 Elasticsearch index already exists: emails');
+      logger.info('📁 Elasticsearch index already exists: emails');
     }
 
   } catch (err) {
-    console.error('❌ Error initializing Elasticsearch index:', err.message);
+    logger.error(`❌ Error initializing Elasticsearch index: ${err.message}`);
   }
 }
 

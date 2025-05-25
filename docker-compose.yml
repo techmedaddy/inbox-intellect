@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    container_name: inbox-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - http.port=49200
+    ports:
+      - "49200:49200"
+    expose:
+      - "49200"
+    networks:
+      - inbox-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:49200 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  inbox-net:
+    driver: bridge

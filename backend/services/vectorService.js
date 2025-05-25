@@ -1,15 +1,14 @@
-// services/vectorService.js
+// services/vectorService.js (MOCKED – no OpenAI)
 
-const openai = require('../config/openai');
 const fs = require('fs');
 const path = require('path');
 const logger = require('../utils/logger');
 
-// In-memory embedding store
+// In-memory plain-text knowledge base
 let knowledgeBase = [];
 
 /**
- * Loads static agenda entries and embeds them using OpenAI
+ * Loads agenda lines from agenda.txt into memory (no embeddings)
  */
 async function loadAgendaToMemory() {
   const filePath = path.join(__dirname, '../data/agenda.txt');
@@ -19,73 +18,38 @@ async function loadAgendaToMemory() {
     return;
   }
 
-  const content = fs.readFileSync(filePath, 'utf-8').split('\n\n').filter(p => p.trim().length > 0);
+  const content = fs.readFileSync(filePath, 'utf-8')
+    .split('\n\n')
+    .map(p => p.trim())
+    .filter(Boolean);
 
-  for (const paragraph of content) {
-    const embedding = await getEmbedding(paragraph);
-    if (embedding.length > 0) {
-      knowledgeBase.push({ text: paragraph, embedding });
-    }
-  }
-
-  logger.info(`📚 Loaded ${knowledgeBase.length} agenda items into memory`);
+  knowledgeBase = content;
+  logger.info(`📚 [MOCK] Loaded ${knowledgeBase.length} agenda items into memory`);
 }
 
 /**
- * Generates a vector embedding for a given string
- * @param {string} text
- * @returns {Promise<number[]>}
- */
-async function getEmbedding(text) {
-  try {
-    const res = await openai.createEmbedding({
-      model: 'text-embedding-ada-002',
-      input: text,
-    });
-
-    return res.data.data[0].embedding;
-  } catch (err) {
-    logger.error(`❌ Embedding generation failed: ${err.message}`);
-    return [];
-  }
-}
-
-/**
- * Computes cosine similarity between two vectors
- */
-function cosineSimilarity(vec1, vec2) {
-  const dot = vec1.reduce((sum, val, i) => sum + val * vec2[i], 0);
-  const normA = Math.sqrt(vec1.reduce((sum, val) => sum + val * val, 0));
-  const normB = Math.sqrt(vec2.reduce((sum, val) => sum + val * val, 0));
-  return dot / (normA * normB);
-}
-
-/**
- * Finds the most relevant agenda entry for a given email
+ * Finds the most relevant agenda entry by keyword matching
  * @param {string} emailText
- * @returns {Promise<string|null>} Best matching agenda entry
+ * @returns {Promise<string|null>}
  */
 async function findRelevantAgenda(emailText) {
-  const emailEmbedding = await getEmbedding(emailText);
+  const text = emailText.toLowerCase();
 
-  if (!emailEmbedding.length) {
-    logger.warn('⚠️ Email embedding is empty — skipping agenda match');
-    return null;
+  let match = knowledgeBase.find(p =>
+    text.includes('interview') && p.toLowerCase().includes('interview') ||
+    text.includes('schedule') && p.toLowerCase().includes('book') ||
+    text.includes('job') && p.toLowerCase().includes('resume') ||
+    text.includes('meeting') && p.toLowerCase().includes('meeting')
+  );
+
+  if (!match) {
+    match = knowledgeBase[0] || null;
+    logger.warn('⚠️ [MOCK] No strong match found — defaulting to first agenda item');
+  } else {
+    logger.info('🎯 [MOCK] Matched agenda item by keyword');
   }
 
-  let bestMatch = null;
-  let highestScore = -1;
-
-  for (const item of knowledgeBase) {
-    const score = cosineSimilarity(emailEmbedding, item.embedding);
-    if (score > highestScore) {
-      bestMatch = item.text;
-      highestScore = score;
-    }
-  }
-
-  logger.info(`🎯 Best agenda match found with similarity score: ${highestScore.toFixed(4)}`);
-  return bestMatch;
+  return match;
 }
 
 module.exports = {
